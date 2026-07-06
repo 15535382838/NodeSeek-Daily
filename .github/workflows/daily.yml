@@ -11,6 +11,7 @@ on:
 jobs:
   run-nodeseek-daily:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout repository
@@ -52,21 +53,36 @@ jobs:
           NS_COOKIE: ${{ secrets.NS_COOKIE }}
           NS_RANDOM: ${{ secrets.NS_RANDOM }}
           HEADLESS: "true"
+          PYTHONUNBUFFERED: "1"
         run: |
-          python - <<'PY'
-          import subprocess, sys, types
+          export DISPLAY=:99
+          Xvfb :99 -screen 0 1920x1080x24 -ac &
+          sleep 2
+          python -u - <<'PY'
+          import os, shutil, subprocess, sys, tempfile, types
           import undetected_chromedriver as _uc
+
+          print("准备启动...", flush=True)
 
           ver = int(subprocess.check_output(
               ["google-chrome", "--version"], text=True
           ).split()[2].split(".")[0])
+          print(f"Chrome major={ver}", flush=True)
+
+          tmpdir = tempfile.mkdtemp()
+          driver = os.path.join(tmpdir, "chromedriver")
+          shutil.copy2("/usr/local/bin/chromedriver", driver)
+          os.chmod(driver, 0o755)
+          print(f"driver copy={driver}", flush=True)
 
           def _make_chrome(options=None, **kwargs):
+              print("正在启动 Chrome...", flush=True)
               return _uc.Chrome(
                   options=options,
                   version_main=ver,
-                  driver_executable_path="/usr/local/bin/chromedriver",
+                  driver_executable_path=driver,
                   browser_executable_path="/usr/bin/google-chrome",
+                  use_subprocess=True,
                   **kwargs,
               )
 
