@@ -24,10 +24,23 @@ jobs:
       - name: Install Google Chrome and Xvfb
         run: |
           sudo apt-get update
-          sudo apt-get install -y wget xvfb
+          sudo apt-get install -y wget unzip xvfb
           wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
           sudo apt-get install -y ./google-chrome-stable_current_amd64.deb
           google-chrome --version
+
+      - name: Install matching ChromeDriver
+        run: |
+          CHROME_VERSION=$(google-chrome --version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+')
+          CHROME_MAJOR=$(echo "$CHROME_VERSION" | cut -d. -f1)
+          echo "Chrome $CHROME_VERSION, major=$CHROME_MAJOR"
+          DRIVER_VERSION=$(curl -fsSL "https://googlechromelabs.github.io/chrome-for-testing/LATEST_RELEASE_${CHROME_MAJOR}")
+          echo "ChromeDriver $DRIVER_VERSION"
+          wget -q "https://storage.googleapis.com/chrome-for-testing-public/${DRIVER_VERSION}/linux64/chromedriver-linux64.zip"
+          unzip -q chromedriver-linux64.zip
+          sudo mv chromedriver-linux64/chromedriver /usr/local/bin/chromedriver
+          sudo chmod +x /usr/local/bin/chromedriver
+          chromedriver --version
 
       - name: Install Python dependencies
         run: |
@@ -39,4 +52,30 @@ jobs:
           NS_COOKIE: ${{ secrets.NS_COOKIE }}
           NS_RANDOM: ${{ secrets.NS_RANDOM }}
           HEADLESS: "true"
-        run: python nodeseek_daily.py
+        run: |
+          python - <<'PY'
+          import subprocess, sys, types
+          import undetected_chromedriver as _uc
+
+          ver = int(subprocess.check_output(
+              ["google-chrome", "--version"], text=True
+          ).split()[2].split(".")[0])
+
+          def _make_chrome(options=None, **kwargs):
+              return _uc.Chrome(
+                  options=options,
+                  version_main=ver,
+                  driver_executable_path="/usr/local/bin/chromedriver",
+                  browser_executable_path="/usr/bin/google-chrome",
+                  **kwargs,
+              )
+
+          shim = types.ModuleType("undetected_chromedriver")
+          shim.ChromeOptions = _uc.ChromeOptions
+          shim.Chrome = _make_chrome
+          sys.modules["undetected_chromedriver"] = shim
+
+          with open("nodeseek_daily.py", encoding="utf-8") as f:
+              code = compile(f.read(), "nodeseek_daily.py", "exec")
+          exec(code, {"__name__": "__main__", "__file__": "nodeseek_daily.py"})
+          PY
