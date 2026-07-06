@@ -1,11 +1,12 @@
 name: NodeSeek 自动签到评论加鸡腿
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
   schedule:
-    - cron: '00 16 * * *'  # UTC 16:00，即北京时间 00:00
+    - cron: '00 16 * * *'
 
 jobs:
   run-nodeseek-daily:
@@ -13,21 +14,22 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
-      
-      - name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.11.8'
+        uses: actions/checkout@v4
 
-      - name: Install Chrome and Xvfb
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Google Chrome and Xvfb
         run: |
           sudo apt-get update
-          sudo apt-get install -y chromium-browser chromium-chromedriver xvfb
-          echo "Chrome version:"
-          chromium-browser --version
-          echo "ChromeDriver version:"
-          chromedriver --version
+          sudo apt-get install -y wget gnupg xvfb
+          wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg
+          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
+          google-chrome --version
 
       - name: Install Python dependencies
         run: |
@@ -39,5 +41,4 @@ jobs:
           NS_COOKIE: ${{ secrets.NS_COOKIE }}
           NS_RANDOM: ${{ secrets.NS_RANDOM }}
           HEADLESS: "true"
-        run: |
-          python nodeseek_daily.py
+        run: python nodeseek_daily.py
