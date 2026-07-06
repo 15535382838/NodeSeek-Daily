@@ -24,28 +24,9 @@ randomInputStr = ["bd","绑定","帮顶"]
 
 def click_sign_icon(driver):
     try:
-        print("正在前往首页签到...")
-        driver.get('https://www.nodeseek.com')
+        print("正在前往签到页面...")
+        driver.get('https://www.nodeseek.com/board')
         time.sleep(3)
-
-        print("开始查找签到图标...")
-        sign_icon = WebDriverWait(driver, 30).until(
-            EC.presence_of_element_located((By.XPATH, "//span[@title='签到']"))
-        )
-        print("找到签到图标，准备点击...")
-
-        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", sign_icon)
-        time.sleep(0.5)
-
-        try:
-            sign_link = sign_icon.find_element(By.XPATH, "./ancestor::a[1]")
-            driver.execute_script("arguments[0].click();", sign_link)
-        except Exception:
-            driver.execute_script("arguments[0].click();", sign_icon)
-
-        print("签到图标点击成功")
-        print("等待页面跳转...")
-        time.sleep(5)
         print(f"当前页面URL: {driver.current_url}")
 
         try:
